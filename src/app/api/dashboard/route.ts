@@ -78,9 +78,9 @@ export async function GET() {
     const productionTrend = last14Days.map((d) => ({ date: d, quantity: prodMap.get(d) || 0 }));
 
     // Order status distribution
-    const allOrders = await prisma.order.groupBy({ by: ["status"], _count: { _all: true } });
+    const allOrders = await prisma.order.groupBy({ by: ["status"], _count: true });
     const orderStatusLabels: Record<string, string> = { new: "جديد", in_progress: "جاري", delayed: "متأخر", completed: "مكتمل", delivered: "مسلّم" };
-    const orderDistribution = allOrders.map((o) => ({ status: orderStatusLabels[o.status] || o.status, count: o._count._all }));
+    const orderDistribution = allOrders.map((o) => ({ status: orderStatusLabels[o.status] || o.status, count: o._count }));
 
     // Attendance trend - last 7 days
     const last7Days: string[] = [];
@@ -91,10 +91,10 @@ export async function GET() {
     }
     const attByDay = await prisma.attendance.groupBy({
       by: ["date"],
-      _count: { _all: true },
+      _count: true,
       where: { date: { in: last7Days }, status: "present" },
     });
-    const attMap = new Map(attByDay.map((a) => [a.date, a._count._all]));
+    const attMap = new Map(attByDay.map((a) => [a.date, a._count]));
     const attendanceTrend = last7Days.map((d) => ({ date: d, present: attMap.get(d) || 0 }));
 
     return NextResponse.json({
@@ -112,7 +112,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Dashboard API error:", error);
-    const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: "حدث خطأ", details: message }, { status: 500 });
+    return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
