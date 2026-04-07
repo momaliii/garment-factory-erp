@@ -4,30 +4,18 @@ import { PrismaClient } from "@/generated/prisma/client";
 import bcrypt from "bcryptjs";
 import { parsePermissions, type Permissions } from "./permissions";
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { PrismaMariaDb } = require("@prisma/adapter-mariadb");
+
 function createLocalPrisma() {
-  if (process.env.DB_HOST) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PrismaMariaDb } = require("@prisma/adapter-mariadb");
-    const adapter = new PrismaMariaDb({
-      host: process.env.DB_HOST,
-      port: Number(process.env.DB_PORT || 3306),
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-    });
-    return new PrismaClient({ adapter });
-  }
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PrismaBetterSqlite3 } = require("@prisma/adapter-better-sqlite3");
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const path = require("path");
-    const dbPath = path.resolve(process.cwd(), "dev.db");
-    const adapter = new PrismaBetterSqlite3({ url: `file:${dbPath}` });
-    return new PrismaClient({ adapter });
-  } catch {
-    throw new Error("DB_HOST environment variable is required in production.");
-  }
+  const adapter = new PrismaMariaDb({
+    host: process.env.DB_HOST || "localhost",
+    port: Number(process.env.DB_PORT || 3306),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+  });
+  return new PrismaClient({ adapter });
 }
 
 declare module "next-auth" {

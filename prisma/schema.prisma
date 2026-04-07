@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
 }
 
 model User {
@@ -25,7 +25,7 @@ model Role {
   id          String   @id @default(cuid())
   name        String   @unique
   label       String
-  permissions String
+  permissions String   @db.Text
   isSystem    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -36,7 +36,7 @@ model GuestLink {
   id          String   @id @default(cuid())
   token       String   @unique
   name        String
-  permissions String
+  permissions String   @db.Text
   expiresAt   DateTime
   maxVisits   Int?
   visitCount  Int      @default(0)
@@ -82,7 +82,7 @@ model Attendance {
   checkIn    String?
   checkOut   String?
   status     String   @default("present")
-  notes      String?
+  notes      String?  @db.Text
   createdAt  DateTime @default(now())
 
   @@unique([employeeId, date])
@@ -96,7 +96,7 @@ model DailyProduction {
   order      Order?   @relation(fields: [orderId], references: [id])
   date       String
   quantity   Int
-  notes      String?
+  notes      String?  @db.Text
   createdAt  DateTime @default(now())
 }
 
@@ -112,7 +112,7 @@ model PayrollRecord {
   totalDeductions Float       @default(0)
   netSalary       Float
   status          String      @default("draft")
-  notes           String?
+  notes           String?     @db.Text
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   deductions      Deduction[]
@@ -128,7 +128,7 @@ model Deduction {
   payrollRecord  PayrollRecord? @relation(fields: [payrollId], references: [id])
   type           String
   amount         Float
-  reason         String?
+  reason         String?        @db.Text
   date           String
   createdAt      DateTime       @default(now())
 }
@@ -137,8 +137,8 @@ model Client {
   id           String               @id @default(cuid())
   name         String
   phone        String?
-  address      String?
-  notes        String?
+  address      String?              @db.Text
+  notes        String?              @db.Text
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
   orders       Order[]
@@ -161,12 +161,12 @@ model Order {
   clientId         String
   client           Client            @relation(fields: [clientId], references: [id], onDelete: Cascade)
   type             String
-  description      String?
+  description      String?           @db.Text
   totalQuantity    Int
   unitPrice        Float
   deadline         String
   status           String            @default("new")
-  notes            String?
+  notes            String?           @db.Text
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   orderProgress    OrderProgress[]
@@ -183,7 +183,7 @@ model OrderProgress {
   date      String
   produced  Int      @default(0)
   delivered Int      @default(0)
-  notes     String?
+  notes     String?  @db.Text
   createdAt DateTime @default(now())
 }
 
@@ -195,7 +195,7 @@ model FabricReceiving {
   fabricType String?
   quantity   Float
   unit       String   @default("meter")
-  notes      String?
+  notes      String?  @db.Text
   createdAt  DateTime @default(now())
 }
 
@@ -203,7 +203,7 @@ model Notification {
   id        String   @id @default(cuid())
   userId    String
   title     String
-  message   String
+  message   String   @db.Text
   type      String   @default("info")
   isRead    Boolean  @default(false)
   link      String?
@@ -217,7 +217,7 @@ model AuditLog {
   action    String
   entity    String
   entityId  String?
-  changes   String?
+  changes   String?  @db.Text
   createdAt DateTime @default(now())
 }
 
@@ -242,7 +242,7 @@ model InventoryTransaction {
   type      String
   quantity  Float
   orderId   String?
-  notes     String?
+  notes     String?       @db.Text
   createdAt DateTime      @default(now())
 }
 
@@ -253,7 +253,7 @@ model ProductionStage {
   stage       String
   status      String    @default("pending")
   assigneeId  String?
-  notes       String?
+  notes       String?   @db.Text
   startedAt   DateTime?
   completedAt DateTime?
   createdAt   DateTime  @default(now())
@@ -274,7 +274,7 @@ model Expense {
   categoryId  String
   category    ExpenseCategory @relation(fields: [categoryId], references: [id])
   amount      Float
-  description String?
+  description String?         @db.Text
   date        String
   isRecurring Boolean         @default(false)
   createdById String
@@ -294,7 +294,7 @@ model Revenue {
   categoryId  String
   category    RevenueCategory @relation(fields: [categoryId], references: [id])
   amount      Float
-  description String?
+  description String?         @db.Text
   date        String
   orderId     String?
   order       Order?          @relation(fields: [orderId], references: [id])
@@ -305,7 +305,7 @@ model Revenue {
 model BonusSettings {
   id        String   @id @default(cuid())
   type      String   @unique
-  rules     String
+  rules     String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -313,7 +313,7 @@ model BonusSettings {
 model WebhookEndpoint {
   id        String       @id @default(cuid())
   url       String
-  events    String
+  events    String       @db.Text
   secret    String
   isActive  Boolean      @default(true)
   createdAt DateTime     @default(now())
@@ -326,9 +326,9 @@ model WebhookLog {
   endpointId String
   endpoint   WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
   event      String
-  payload    String
+  payload    String          @db.LongText
   statusCode Int?
-  response   String?
+  response   String?         @db.Text
   createdAt  DateTime        @default(now())
 }
 
@@ -336,7 +336,7 @@ model ApiKey {
   id          String    @id @default(cuid())
   name        String
   key         String    @unique
-  permissions String
+  permissions String    @db.Text
   isActive    Boolean   @default(true)
   lastUsedAt  DateTime?
   createdAt   DateTime  @default(now())
@@ -348,7 +348,7 @@ model AiConversation {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String?
-  messages  String
+  messages  String   @db.LongText
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

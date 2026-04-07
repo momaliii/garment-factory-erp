@@ -2,26 +2,18 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import bcrypt from "bcryptjs";
 import "dotenv/config";
 
-function createAdapter() {
-  if (process.env.DB_HOST) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PrismaMariaDb } = require("@prisma/adapter-mariadb");
-    return new PrismaMariaDb({
-      host: process.env.DB_HOST,
-      port: Number(process.env.DB_PORT || 3306),
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-    });
-  }
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { PrismaBetterSqlite3 } = require("@prisma/adapter-better-sqlite3");
-  const path = require("path");
-  const dbPath = path.resolve(process.cwd(), "dev.db");
-  return new PrismaBetterSqlite3({ url: `file:${dbPath}` });
-}
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { PrismaMariaDb } = require("@prisma/adapter-mariadb");
 
-const prisma = new PrismaClient({ adapter: createAdapter() });
+const adapter = new PrismaMariaDb({
+  host: process.env.DB_HOST || "localhost",
+  port: Number(process.env.DB_PORT || 3306),
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+});
+
+const prisma = new PrismaClient({ adapter });
 
 const SYSTEM_ROLES = [
   {
