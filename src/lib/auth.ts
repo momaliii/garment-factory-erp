@@ -7,7 +7,23 @@ import { parsePermissions, type Permissions } from "./permissions";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { PrismaMariaDb } = require("@prisma/adapter-mariadb");
 
+function parseDbUrl(url: string) {
+  const u = new URL(url);
+  return {
+    host: u.hostname,
+    port: Number(u.port || 3306),
+    user: decodeURIComponent(u.username),
+    password: decodeURIComponent(u.password),
+    database: u.pathname.replace("/", ""),
+  };
+}
+
 function createLocalPrisma() {
+  const dbUrl = process.env.DATABASE_URL;
+  if (dbUrl && dbUrl.startsWith("mysql://")) {
+    const config = parseDbUrl(dbUrl);
+    return new PrismaClient({ adapter: new PrismaMariaDb(config) });
+  }
   const adapter = new PrismaMariaDb({
     host: process.env.DB_HOST || "localhost",
     port: Number(process.env.DB_PORT || 3306),

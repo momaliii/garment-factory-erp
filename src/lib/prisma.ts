@@ -6,7 +6,25 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+function parseDbUrl(url: string) {
+  const u = new URL(url);
+  return {
+    host: u.hostname,
+    port: Number(u.port || 3306),
+    user: decodeURIComponent(u.username),
+    password: decodeURIComponent(u.password),
+    database: u.pathname.replace("/", ""),
+  };
+}
+
 function createPrismaClient() {
+  const dbUrl = process.env.DATABASE_URL;
+  if (dbUrl && dbUrl.startsWith("mysql://")) {
+    const config = parseDbUrl(dbUrl);
+    const adapter = new PrismaMariaDb(config);
+    return new PrismaClient({ adapter });
+  }
+
   const adapter = new PrismaMariaDb({
     host: process.env.DB_HOST || "localhost",
     port: Number(process.env.DB_PORT || 3306),
