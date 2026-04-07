@@ -1,38 +1,8 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaClient } from "@/generated/prisma/client";
 import bcrypt from "bcryptjs";
 import { parsePermissions, type Permissions } from "./permissions";
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { PrismaMariaDb } = require("@prisma/adapter-mariadb");
-
-function parseDbUrl(url: string) {
-  const u = new URL(url);
-  return {
-    host: u.hostname,
-    port: Number(u.port || 3306),
-    user: decodeURIComponent(u.username),
-    password: decodeURIComponent(u.password),
-    database: u.pathname.replace("/", ""),
-  };
-}
-
-function createLocalPrisma() {
-  const dbUrl = process.env.DATABASE_URL;
-  if (dbUrl && dbUrl.startsWith("mysql://")) {
-    const config = parseDbUrl(dbUrl);
-    return new PrismaClient({ adapter: new PrismaMariaDb(config) });
-  }
-  const adapter = new PrismaMariaDb({
-    host: process.env.DB_HOST || "localhost",
-    port: Number(process.env.DB_PORT || 3306),
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-  });
-  return new PrismaClient({ adapter });
-}
+import { prisma } from "./prisma";
 
 declare module "next-auth" {
   interface Session {
@@ -69,31 +39,26 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const prisma = createLocalPrisma();
-        try {
-          const user = await prisma.user.findUnique({
-            where: { username: credentials.username },
-            include: { role: true },
-          });
+        const user = await prisma.user.findUnique({
+          where: { username: credentials.username },
+          include: { role: true },
+        });
 
-          if (!user) return null;
+        if (!user) return null;
 
-          const isValid = await bcrypt.compare(
-            credentials.password,
-            user.password
-          );
-          if (!isValid) return null;
+        const isValid = await bcrypt.compare(
+          credentials.password,
+          user.password
+        );
+        if (!isValid) return null;
 
-          return {
-            id: user.id,
-            name: user.name,
-            role: user.role.name,
-            permissions: parsePermissions(user.role.permissions),
-            employeeId: user.employeeId,
-          };
-        } finally {
-          await prisma.$disconnect();
-        }
+        return {
+          id: user.id,
+          name: user.name,
+          role: user.role.name,
+          permissions: parsePermissions(user.role.permissions),
+          employeeId: user.employeeId,
+        };
       },
     }),
   ],
