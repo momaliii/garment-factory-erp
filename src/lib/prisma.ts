@@ -5,8 +5,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
-  if (process.env.DB_HOST && process.env.DB_HOST !== "localhost_disabled") {
-    // Production: MySQL via MariaDB adapter
+  if (process.env.DB_HOST) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { PrismaMariaDb } = require("@prisma/adapter-mariadb");
     const adapter = new PrismaMariaDb({
@@ -19,13 +18,17 @@ function createPrismaClient() {
     return new PrismaClient({ adapter });
   }
 
-  // Local development: SQLite
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { PrismaBetterSqlite3 } = require("@prisma/adapter-better-sqlite3");
-  const path = require("path");
-  const dbPath = path.resolve(process.cwd(), "dev.db");
-  const adapter = new PrismaBetterSqlite3({ url: `file:${dbPath}` });
-  return new PrismaClient({ adapter });
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { PrismaBetterSqlite3 } = require("@prisma/adapter-better-sqlite3");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require("path");
+    const dbPath = path.resolve(process.cwd(), "dev.db");
+    const adapter = new PrismaBetterSqlite3({ url: `file:${dbPath}` });
+    return new PrismaClient({ adapter });
+  } catch {
+    throw new Error("DB_HOST environment variable is required in production. Set DB_HOST, DB_USER, DB_PASSWORD, DB_NAME.");
+  }
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();

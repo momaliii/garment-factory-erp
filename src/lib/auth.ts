@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { parsePermissions, type Permissions } from "./permissions";
 
 function createLocalPrisma() {
-  if (process.env.DB_HOST && process.env.DB_HOST !== "localhost_disabled") {
+  if (process.env.DB_HOST) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { PrismaMariaDb } = require("@prisma/adapter-mariadb");
     const adapter = new PrismaMariaDb({
@@ -17,12 +17,17 @@ function createLocalPrisma() {
     });
     return new PrismaClient({ adapter });
   }
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { PrismaBetterSqlite3 } = require("@prisma/adapter-better-sqlite3");
-  const path = require("path");
-  const dbPath = path.resolve(process.cwd(), "dev.db");
-  const adapter = new PrismaBetterSqlite3({ url: `file:${dbPath}` });
-  return new PrismaClient({ adapter });
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { PrismaBetterSqlite3 } = require("@prisma/adapter-better-sqlite3");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require("path");
+    const dbPath = path.resolve(process.cwd(), "dev.db");
+    const adapter = new PrismaBetterSqlite3({ url: `file:${dbPath}` });
+    return new PrismaClient({ adapter });
+  } catch {
+    throw new Error("DB_HOST environment variable is required in production.");
+  }
 }
 
 declare module "next-auth" {
