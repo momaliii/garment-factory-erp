@@ -30,14 +30,26 @@ const DEFAULT_SETTINGS: BackupSettings = {
   maxBackups: 30,
 };
 
-function ensureBackupDir() {
-  if (!fs.existsSync(BACKUPS_DIR)) {
-    fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+/** Returns false if the host disallows writes under cwd (common on shared hosting). */
+function ensureBackupDir(): boolean {
+  try {
+    if (!fs.existsSync(BACKUPS_DIR)) {
+      fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+    }
+    return true;
+  } catch (err) {
+    console.warn(
+      "[Backup] Cannot use backups directory:",
+      err instanceof Error ? err.message : err
+    );
+    return false;
   }
 }
 
 export function getBackupSettings(): BackupSettings {
-  ensureBackupDir();
+  if (!ensureBackupDir()) {
+    return { ...DEFAULT_SETTINGS };
+  }
   try {
     if (fs.existsSync(SETTINGS_PATH)) {
       return JSON.parse(fs.readFileSync(SETTINGS_PATH, "utf-8"));
@@ -49,7 +61,9 @@ export function getBackupSettings(): BackupSettings {
 }
 
 export function saveBackupSettings(settings: BackupSettings) {
-  ensureBackupDir();
+  if (!ensureBackupDir()) {
+    return;
+  }
   fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
 }
 
@@ -151,7 +165,9 @@ export async function createBackup(
   type: "manual" | "auto" = "manual",
   label?: string
 ): Promise<BackupInfo> {
-  ensureBackupDir();
+  if (!ensureBackupDir()) {
+    throw new Error("تعذر إنشاء مجلد النسخ الاحتياطي على هذا السيرفر");
+  }
 
   const now = new Date();
   const timestamp = now
@@ -183,7 +199,9 @@ export async function createBackup(
 }
 
 export function listBackups(): BackupInfo[] {
-  ensureBackupDir();
+  if (!ensureBackupDir()) {
+    return [];
+  }
 
   const files = fs
     .readdirSync(BACKUPS_DIR)
@@ -208,7 +226,9 @@ export function listBackups(): BackupInfo[] {
 }
 
 export async function restoreBackup(filename: string): Promise<void> {
-  ensureBackupDir();
+  if (!ensureBackupDir()) {
+    throw new Error("تعذر الوصول لمجلد النسخ الاحتياطي");
+  }
 
   const backupPath = path.join(BACKUPS_DIR, filename);
   if (!fs.existsSync(backupPath)) {
@@ -342,7 +362,9 @@ export async function restoreBackup(filename: string): Promise<void> {
 }
 
 export function deleteBackup(filename: string): void {
-  ensureBackupDir();
+  if (!ensureBackupDir()) {
+    throw new Error("تعذر الوصول لمجلد النسخ الاحتياطي");
+  }
 
   const backupPath = path.join(BACKUPS_DIR, filename);
   if (!fs.existsSync(backupPath)) {
