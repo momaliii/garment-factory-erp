@@ -14,7 +14,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Static assets and auth API are excluded by matcher, but double-check
-  if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/client-portal")) {
+  if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/client-portal") || pathname.startsWith("/api/setup")) {
     return NextResponse.next();
   }
 
