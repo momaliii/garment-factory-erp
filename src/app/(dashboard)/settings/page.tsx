@@ -28,6 +28,9 @@ import {
   Globe,
   Shield,
   Clock,
+  Database,
+  Download,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -101,10 +104,10 @@ export default function SettingsPage() {
       <PageHeader title="الإعدادات" description="إدارة إعدادات النظام" />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full grid grid-cols-3">
+        <TabsList className="w-full grid grid-cols-4">
           <TabsTrigger value="bonus" className="gap-2">
             <Settings className="h-4 w-4" />
-            إعدادات البونص
+            البونص
           </TabsTrigger>
           <TabsTrigger value="webhooks" className="gap-2">
             <Webhook className="h-4 w-4" />
@@ -113,6 +116,10 @@ export default function SettingsPage() {
           <TabsTrigger value="api-keys" className="gap-2">
             <Key className="h-4 w-4" />
             API Keys
+          </TabsTrigger>
+          <TabsTrigger value="data" className="gap-2">
+            <Database className="h-4 w-4" />
+            البيانات
           </TabsTrigger>
         </TabsList>
 
@@ -124,6 +131,9 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="api-keys">
           <ApiKeysTab />
+        </TabsContent>
+        <TabsContent value="data">
+          <DataManagementTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -762,7 +772,7 @@ function ApiKeysTab() {
 
       <Dialog
         open={showCreate}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean) => {
           setShowCreate(open);
           if (!open) {
             setCreatedKey(null);
@@ -868,6 +878,114 @@ function ApiKeysTab() {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function DataManagementTab() {
+  const [seeding, setSeeding] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+
+  const seedDemoData = async () => {
+    setSeeding(true);
+    try {
+      const res = await fetch("/api/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret: "garment-factory-setup-2024", action: "seed-demo" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`تم إضافة البيانات التجريبية: ${data.employees} موظف، ${data.clients} عميل، ${data.orders} أوردر`);
+      } else {
+        toast.info(data.message || "البيانات موجودة بالفعل");
+      }
+    } catch {
+      toast.error("حدث خطأ في إضافة البيانات");
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const clearDemoData = async () => {
+    setClearing(true);
+    try {
+      const res = await fetch("/api/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret: "garment-factory-setup-2024", action: "clear-demo" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("تم مسح جميع البيانات التجريبية بنجاح");
+      } else {
+        toast.error(data.error || "حدث خطأ");
+      }
+    } catch {
+      toast.error("حدث خطأ في مسح البيانات");
+    } finally {
+      setClearing(false);
+      setConfirmClear(false);
+    }
+  };
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Download className="h-5 w-5 text-blue-500" />
+            إضافة بيانات تجريبية
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            إضافة بيانات تجريبية للنظام تشمل: موظفين، معدات، عملاء، أوردرات، سجلات حضور وإنتاج لآخر 7 أيام، وإعدادات البونص.
+          </p>
+          <Button onClick={seedDemoData} disabled={seeding} className="w-full gap-2">
+            <Download className="h-4 w-4" />
+            {seeding ? "جاري الإضافة..." : "إضافة البيانات التجريبية"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base text-destructive">
+            <XCircle className="h-5 w-5" />
+            مسح البيانات التجريبية
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            مسح جميع البيانات من النظام (موظفين، عملاء، أوردرات، حضور، إنتاج...). سيتم الاحتفاظ بالأدوار والمستخدمين فقط.
+          </p>
+          {!confirmClear ? (
+            <Button
+              variant="destructive"
+              onClick={() => setConfirmClear(true)}
+              className="w-full gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              مسح جميع البيانات
+            </Button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-destructive">هل أنت متأكد؟ لا يمكن التراجع عن هذا الإجراء.</p>
+              <div className="flex gap-2">
+                <Button variant="destructive" onClick={clearDemoData} disabled={clearing} className="flex-1 gap-2">
+                  <Trash2 className="h-4 w-4" />
+                  {clearing ? "جاري المسح..." : "تأكيد المسح"}
+                </Button>
+                <Button variant="outline" onClick={() => setConfirmClear(false)} className="flex-1">
+                  إلغاء
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

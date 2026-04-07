@@ -56,6 +56,10 @@ export async function POST(request: NextRequest) {
       return await seedDemoData();
     }
 
+    if (action === "clear-demo") {
+      return await clearDemoData();
+    }
+
     const existingRoles = await prisma.role.count();
     if (existingRoles > 0) {
       return NextResponse.json({ message: "Already seeded", roles: existingRoles });
@@ -242,4 +246,33 @@ async function seedDemoData() {
     clients: createdClients.length,
     orders: createdOrders.length,
   });
+}
+
+async function clearDemoData() {
+  await prisma.dailyProduction.deleteMany({});
+  await prisma.attendance.deleteMany({});
+  await prisma.orderProgress.deleteMany({});
+  await prisma.fabricReceiving.deleteMany({});
+  await prisma.productionStage.deleteMany({});
+  await prisma.deduction.deleteMany({});
+  await prisma.payrollRecord.deleteMany({});
+  await prisma.inventoryTransaction.deleteMany({});
+  await prisma.revenue.deleteMany({});
+  await prisma.expense.deleteMany({});
+  await prisma.revenueCategory.deleteMany({});
+  await prisma.expenseCategory.deleteMany({});
+  await prisma.order.deleteMany({});
+  await prisma.clientPortalToken.deleteMany({});
+  await prisma.client.deleteMany({});
+  await prisma.employee.deleteMany({});
+  await prisma.machine.deleteMany({});
+  await prisma.bonusSettings.deleteMany({});
+  await prisma.webhookLog.deleteMany({});
+  await prisma.webhookEndpoint.deleteMany({});
+  await prisma.apiKey.deleteMany({});
+  await prisma.aiConversation.deleteMany({});
+  await prisma.auditLog.deleteMany({});
+  await prisma.notification.deleteMany({});
+
+  return NextResponse.json({ success: true, message: "All demo data cleared. Roles and users kept." });
 }
