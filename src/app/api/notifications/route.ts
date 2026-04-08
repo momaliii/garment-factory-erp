@@ -6,9 +6,11 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+    if (!session?.user?.userId) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+    }
 
-    const userId = (session.user as { userId: string }).userId;
+    const userId = session.user.userId;
 
     const notifications = await prisma.notification.findMany({
       where: { userId },
@@ -30,9 +32,11 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+    if (!session?.user?.userId) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+    }
 
-    const userId = (session.user as { userId: string }).userId;
+    const userId = session.user.userId;
     const body = await request.json();
 
     if (body.markAllRead) {
