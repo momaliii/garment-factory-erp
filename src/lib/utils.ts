@@ -111,3 +111,13 @@ export function todayString(): string {
 export function getCurrentMonth(): string {
   return new Date().toISOString().slice(0, 7);
 }
+
+/** `ym` = `YYYY-MM` (ISO date prefix). For filtering string `date` fields stored as `YYYY-MM-DD`. */
+export function monthDateRange(ym: string): { gte: string; lte: string } {
+  const [y, month] = ym.split("-").map(Number);
+  const lastDay = new Date(y, month, 0).getDate();
+  return {
+    gte: `${ym}-01`,
+    lte: `${ym}-${String(lastDay).padStart(2, "0")}`,
+  };
+}

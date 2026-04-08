@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { todayString, getCurrentMonth } from "@/lib/utils";
+import { todayString, getCurrentMonth, monthDateRange } from "@/lib/utils";
 
 export async function GET() {
   try {
     const today = todayString();
     const currentMonth = getCurrentMonth();
+    const { gte: monthStart, lte: monthEnd } = monthDateRange(currentMonth);
 
     const last14Days: string[] = [];
     for (let i = 13; i >= 0; i--) {
@@ -20,55 +21,51 @@ export async function GET() {
       last7Days.push(d.toISOString().slice(0, 10));
     }
 
-    const [
-      employeeCount,
-      presentToday,
-      todayProductionAgg,
-      activeOrders,
-      delayedOrders,
-      recentOrdersRaw,
-      monthlyPayrollAgg,
-      prodMonthRows,
-      prod14Rows,
-      orderStatusRows,
-      att7Rows,
-    ] = await Promise.all([
-      prisma.employee.count({ where: { isActive: true } }),
-      prisma.attendance.count({ where: { date: today, status: "present" } }),
-      prisma.dailyProduction.aggregate({
-        _sum: { quantity: true },
-        where: { date: today },
-      }),
-      prisma.order.count({
-        where: { status: { in: ["new", "in_progress"] } },
-      }),
-      prisma.order.count({ where: { status: "delayed" } }),
-      prisma.order.findMany({
-        take: 5,
-        orderBy: { createdAt: "desc" },
-        include: {
-          client: { select: { name: true } },
-          orderProgress: { select: { produced: true, delivered: true } },
-        },
-      }),
-      prisma.employee.aggregate({
-        _sum: { baseSalary: true },
-        where: { isActive: true },
-      }),
-      prisma.dailyProduction.findMany({
-        where: { date: { startsWith: currentMonth } },
-        select: { employeeId: true, quantity: true },
-      }),
-      prisma.dailyProduction.findMany({
-        where: { date: { in: last14Days } },
-        select: { date: true, quantity: true },
-      }),
-      prisma.order.findMany({ select: { status: true } }),
-      prisma.attendance.findMany({
-        where: { date: { in: last7Days }, status: "present" },
-        select: { date: true },
-      }),
-    ]);
+    // Run sequentially — shared hosting often has a tiny MySQL pool; many parallel
+    // queries exhaust it and throw (surfacing as 500).
+    const employeeCount = await prisma.employee.count({
+      where: { isActive: true },
+    });
+    const presentToday = await prisma.attendance.count({
+      where: { date: today, status: "present" },
+    });
+    const todayProductionAgg = await prisma.dailyProduction.aggregate({
+      _sum: { quantity: true },
+      where: { date: today },
+    });
+    const activeOrders = await prisma.order.count({
+      where: { status: { in: ["new", "in_progress"] } },
+    });
+    const delayedOrders = await prisma.order.count({
+      where: { status: "delayed" },
+    });
+    const recentOrdersRaw = await prisma.order.findMany({
+      take: 5,
+      orderBy: { createdAt: "desc" },
+      include: {
+        client: { select: { name: true } },
+        orderProgress: { select: { produced: true, delivered: true } },
+      },
+    });
+    const monthlyPayrollAgg = await prisma.employee.aggregate({
+      _sum: { baseSalary: true },
+      where: { isActive: true },
+    });
+    const prodMonthRows = await prisma.dailyProduction.findMany({
+      where: { date: { gte: monthStart, lte: monthEnd } },
+      select: { employeeId: true, quantity: true },
+    });
+    const prod14Rows = await prisma.dailyProduction.findMany({
+      where: { date: { in: last14Days } },
+      select: { date: true, quantity: true },
+    });
+    const orderStatusRows = await prisma.order.findMany({
+      select: { status: true },
+    });
+    const att7Rows = await prisma.attendance.findMany({
+      where: { date: { in: last7Days }, status: "present" },
+      select: { date: true },
+    });
 
     const byEmployeeMonth = new Map<string, number>();
     for (const r of prodMonthRows) {
