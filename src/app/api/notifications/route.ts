@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -12,6 +14,7 @@ export async function GET() {
 
     const userId = session.user.userId;
 
+    // Sequential queries — same small MySQL pool constraints as dashboard
     const notifications = await prisma.notification.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
@@ -44,9 +47,9 @@ export async function PUT(request: NextRequest) {
         where: { userId, isRead: false },
         data: { isRead: true },
       });
-    } else if (body.id) {
-      await prisma.notification.update({
-        where: { id: body.id },
+    } else if (body.id && typeof body.id === "string") {
+      await prisma.notification.updateMany({
+        where: { id: body.id, userId },
         data: { isRead: true },
       });
     }

@@ -1,9 +1,10 @@
 "use client";
 
-import { Moon, Sun, Menu, Bell, Check } from "lucide-react";
+import { Moon, Sun, Menu, Bell, Check, AlertCircle } from "lucide-react";
 import { useTheme } from "@/components/layout/theme-provider";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { CommandSearch } from "@/components/shared/command-search";
 
 interface NotificationItem {
@@ -16,22 +17,31 @@ interface NotificationItem {
   createdAt: string;
 }
 
+const fetchNotifOptions = { credentials: "include" as const };
+
 export function Header() {
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifLoadError, setNotifLoadError] = useState(false);
   const [showNotif, setShowNotif] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
   const loadNotifications = useCallback(async () => {
     try {
-      const res = await fetch("/api/notifications");
+      const res = await fetch("/api/notifications", fetchNotifOptions);
       if (res.ok) {
         const data = await res.json();
         setNotifications(data.notifications || []);
         setUnreadCount(data.unreadCount || 0);
+        setNotifLoadError(false);
+      } else {
+        setNotifLoadError(true);
       }
-    } catch { /* ignore */ }
+    } catch {
+      setNotifLoadError(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -55,10 +65,29 @@ export function Header() {
       await fetch("/api/notifications", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ markAllRead: true }),
       });
       loadNotifications();
     } catch { /* ignore */ }
+  };
+
+  const markOneRead = async (id: string) => {
+    try {
+      await fetch("/api/notifications", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id }),
+      });
+      loadNotifications();
+    } catch { /* ignore */ }
+  };
+
+  const onNotificationClick = async (n: NotificationItem) => {
+    if (!n.isRead) await markOneRead(n.id);
+    setShowNotif(false);
+    if (n.link) router.push(n.link);
   };
 
   const typeColors: Record<string, string> = {
@@ -83,9 +112,14 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           <div className="relative" ref={notifRef} id="notifications-bell">
-            <Button variant="ghost" size="icon" onClick={() => setShowNotif(!showNotif)} className="relative">
+            <Button variant="ghost" size="icon" onClick={() => setShowNotif(!showNotif)} className="relative" title={notifLoadError ? "تعذر تحميل الإشعارات" : undefined}>
               <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
+              {notifLoadError && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-white" aria-hidden>
+                  <AlertCircle className="h-3 w-3" />
+                </span>
+              )}
+              {!notifLoadError && unreadCount > 0 && (
                 <span className="absolute -top-0.5 -left-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </span>
@@ -103,11 +137,18 @@ export function Header() {
                   )}
                 </div>
                 <div className="max-h-80 overflow-y-auto">
-                  {notifications.length === 0 ? (
+                  {notifLoadError ? (
+                    <p className="text-sm text-amber-600 dark:text-amber-500 text-center py-8 px-4">تعذر تحميل الإشعارات. تحقق من الاتصال ثم حدّث الصفحة.</p>
+                  ) : notifications.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-8">لا توجد إشعارات</p>
                   ) : (
                     notifications.slice(0, 20).map((n) => (
-                      <div key={n.id} className={`px-4 py-3 border-b last:border-0 hover:bg-muted/50 transition-colors ${!n.isRead ? "bg-primary/5" : ""}`}>
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => onNotificationClick(n)}
+                        className={`w-full text-right px-4 py-3 border-b last:border-0 hover:bg-muted/50 transition-colors ${!n.isRead ? "bg-primary/5" : ""}`}
+                      >
                         <div className="flex items-start gap-2">
                           <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${typeColors[n.type] || typeColors.info}`} />
                           <div className="flex-1 min-w-0">
@@ -118,7 +159,7 @@ export function Header() {
                             </p>
                           </div>
                         </div>
-                      </div>
+                      </button>
                     ))
                   )}
                 </div>

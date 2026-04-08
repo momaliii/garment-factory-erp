@@ -14,6 +14,7 @@ import {
   Database,
   Calendar,
   Loader2,
+  Server,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/components/shared/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface BackupInfo {
   filename: string;
@@ -95,7 +97,7 @@ export default function BackupsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/backups");
+      const res = await fetch("/api/admin/backups", { credentials: "include" });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setBackups(data.backups);
@@ -117,6 +119,7 @@ export default function BackupsPage() {
       const res = await fetch("/api/admin/backups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ action: "create" }),
       });
       if (!res.ok) throw new Error();
@@ -135,6 +138,7 @@ export default function BackupsPage() {
       const res = await fetch("/api/admin/backups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ action: "update_settings", ...settings }),
       });
       if (!res.ok) throw new Error();
@@ -148,7 +152,9 @@ export default function BackupsPage() {
 
   async function handleDownload(filename: string) {
     try {
-      const res = await fetch(`/api/admin/backups/${filename}`);
+      const res = await fetch(`/api/admin/backups/${filename}`, {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error();
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -169,7 +175,7 @@ export default function BackupsPage() {
     try {
       const res = await fetch(
         `/api/admin/backups/${restoreDialog.filename}`,
-        { method: "POST" }
+        { method: "POST", credentials: "include" }
       );
       if (!res.ok) {
         const err = await res.json();
@@ -192,7 +198,7 @@ export default function BackupsPage() {
     try {
       const res = await fetch(
         `/api/admin/backups/${deleteDialog.filename}`,
-        { method: "DELETE" }
+        { method: "DELETE", credentials: "include" }
       );
       if (!res.ok) throw new Error();
       toast.success("تم حذف النسخة الاحتياطية");
@@ -221,13 +227,49 @@ export default function BackupsPage() {
     <div className="space-y-6">
       <PageHeader
         title="النسخ الاحتياطي واستعادة البيانات"
-        description="إدارة النسخ الاحتياطية لقاعدة البيانات وإعدادات الجدولة التلقائية"
+        description="نسخ JSON من النظام + جدولة تلقائية؛ ويُنصح بنسخ SQL من phpMyAdmin كطبقة إضافية"
         action={{
           label: creating ? "جاري الإنشاء..." : "نسخة احتياطية الآن",
           icon: Plus,
           onClick: handleCreate,
         }}
       />
+
+      <Card className="border-blue-200/80 dark:border-blue-900/50 bg-blue-50/40 dark:bg-blue-950/20">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <Server className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            نسخ احتياطي من phpMyAdmin (موصى به مع النسخ داخل النظام)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <p>
+            نسخ النظام (JSON) مفيدة للاستعادة من داخل التطبيق. نسخة{" "}
+            <strong className="text-foreground">SQL كاملة</strong> من phpMyAdmin تحمي
+            قاعدة البيانات حتى لو تعطل التطبيق أو تغيّر السيرفر — استخدم الاثنين معًا.
+          </p>
+          <p className="font-medium text-foreground">جدولة مقترحة يدويًا من لوحة الاستضافة</p>
+          <ul className="list-disc list-inside space-y-1 pe-2">
+            <li>
+              <strong className="text-foreground">أسبوعيًا</strong> (مثلاً كل أحد): تصدير SQL من phpMyAdmin.
+            </li>
+            <li>
+              <strong className="text-foreground">يوميًا</strong>: فعّل الجدولة أدناه للنسخ JSON التلقائية داخل النظام.
+            </li>
+          </ul>
+          <p className="font-medium text-foreground">خطوات التصدير على Hostinger (وما شابهها)</p>
+          <ol className="list-decimal list-inside space-y-1 pe-2">
+            <li>ادخل إلى hPanel → قواعد البيانات → افتح phpMyAdmin.</li>
+            <li>اختر قاعدة بيانات المشروع من القائمة اليسرى.</li>
+            <li>تبويب Export — طريقة Quick — تنسيق SQL — تنزيل الملف (Go).</li>
+            <li>احفظ الملف في مكان آمن (جهازك أو تخزين سحابي).</li>
+          </ol>
+          <p className="text-xs border-t border-border/60 pt-3">
+            لا يمكن للتطبيق تشغيل phpMyAdmin تلقائيًا؛ التصدير SQL يتم من لوحة الاستضافة.
+            إن وفر المستضيف «نسخ احتياطي مجدول» لقاعدة MySQL، فعّله أيضًا كطبقة ثالثة.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
