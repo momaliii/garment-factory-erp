@@ -17,11 +17,16 @@ function parseDbUrl(url: string) {
   };
 }
 
+/** MySQL 8 / MariaDB over TLS-less connections often need this (e.g. Hostinger). */
+const MYSQL_POOL_OPTIONS = { allowPublicKeyRetrieval: true as const };
+
 function createPrismaClient() {
   const dbUrl = process.env.DATABASE_URL;
   if (dbUrl && dbUrl.startsWith("mysql://")) {
-    const config = parseDbUrl(dbUrl);
-    const adapter = new PrismaMariaDb(config);
+    const adapter = new PrismaMariaDb({
+      ...parseDbUrl(dbUrl),
+      ...MYSQL_POOL_OPTIONS,
+    });
     return new PrismaClient({ adapter });
   }
 
@@ -31,6 +36,7 @@ function createPrismaClient() {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
+    ...MYSQL_POOL_OPTIONS,
   });
   return new PrismaClient({ adapter });
 }
